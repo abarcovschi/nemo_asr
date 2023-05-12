@@ -1,0 +1,12 @@
+.hypothesis/
+__pycache__/
+.vscode/
+datasets/
+experiments/
+lightning_logs/
+models/
+nemo_experiments/
+non-finetuned/
+tokenizers/
+test_audio/
+run_inference_batch.log
