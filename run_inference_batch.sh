@@ -1,9 +1,8 @@
 #!/bin/bash
 
 declare -a arr_dataset=(
-	"/workspace/datasets/myst_w2v2_asr/test_manifest.json"
-	"/workspace/datasets/cmu_hf/test_manifest.json"
-	"/workspace/datasets/pfe_16khz/test_manifest.json")
+	"/workspace/datasets/LibriSpeech/test-clean/test_manifest.json"
+	"/workspace/datasets/LibriSpeech/test-other/test_manifest.json")
 
 declare -a arr_model=(
 	"/workspace/nemo/non-finetuned/models/stt_en_conformer_transducer_small.nemo"

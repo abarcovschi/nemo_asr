@@ -168,6 +168,8 @@ class TranscriptionConfig:
 def main(cfg: TranscriptionConfig) -> TranscriptionConfig:
     logging.info(f'Hydra config: {OmegaConf.to_yaml(cfg)}')
 
+
+
     for key in cfg:
         cfg[key] = None if cfg[key] == 'None' else cfg[key]
 
@@ -211,10 +213,18 @@ def main(cfg: TranscriptionConfig) -> TranscriptionConfig:
         device = [cfg.cuda]
         accelerator = 'gpu'
         map_location = torch.device(f'cuda:{cfg.cuda}')
+    
+    # # part of change tokenizer
+    # map_location = torch.device('cpu')
 
     logging.info(f"Inference will be done on device: {map_location}")
 
     asr_model, model_name = setup_model(cfg, map_location)
+
+    # # change tokenizer
+    # asr_model.change_vocabulary(
+    #     new_tokenizer_dir="tokenizers/myst_w2v2_asr/tokenizer_spe_unigram_v1024/",
+    #     new_tokenizer_type="bpe")
 
     trainer = pl.Trainer(devices=device, accelerator=accelerator)
     asr_model.set_trainer(trainer)

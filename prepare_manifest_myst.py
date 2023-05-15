@@ -5,6 +5,7 @@ import librosa
 
 """Build train and valid manifest.json files for ASR training in the NeMo framework for the MyST dataset, originally called 'myst_w2v2_asr.zip'
 NOTE: this formatting of the cleaned MyST dataset is for ASR training only!
+NOTE: this script also works for pfe_16khz (PFStar child audio dataset cleaned and preprocessed for ASR).
 """
 
 # Function to build a manifest
@@ -31,7 +32,7 @@ def build_manifest(src_data_path, manifest_path):
                 
 if __name__ == "__main__":
     # Building Manifests
-    data_dir_root = '/workspace/datasets/pfe_16khz'
+    data_dir_root = '/workspace/datasets/LibriSpeech/test-clean'
     print("******")
     # creating train manifest
     train_manifest_path = os.path.join(data_dir_root, 'train_manifest.json') # to be created
