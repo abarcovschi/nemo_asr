@@ -250,7 +250,7 @@ def main(cfg: TranscriptionConfig) -> TranscriptionConfig:
                 decoding_cfg.preserve_alignments = cfg.compute_timestamps
             if 'compute_langs' in decoding_cfg:
                 decoding_cfg.compute_langs = cfg.compute_langs
-            asr_model.change_decoding_strategy(decoding_cfg, decoder_type=cfg.decoder_type)
+            asr_model.change_decoding_strategy(decoding_cfg)
 
         # Check if ctc or rnnt model
         elif hasattr(asr_model, 'joint'):  # RNNT model
