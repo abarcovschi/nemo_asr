@@ -20,7 +20,7 @@ Example: `python transcribe_speech.py model_path=/path/to/model.nemo dataset_man
   - `rnnt_decoding.rnnt_timestamp_type` may be `'all'`, `'char'` or `'word'` (will set `asr_model.cfg.decoding.rnnt_timestamp_type` to one of these).
     - Same options if using `ctc_decoding.ctc_timestamp_type`.
 
- 3. Run the script `scripts/timestamps_from_offset_to_secs.py --predictions_path /path/to/output_predictions.json` to create output 'alignments.txt' CSV files containing transcripts with word-level time alignments for each audio file listed in the input manifest file used in step 2.
+ 3. Run the script `scripts/timestamps_from_offset_to_secs.py --predictions_file_path /path/to/output_predictions.json` to create output 'alignments.txt' CSV files containing transcripts with word-level time alignments for each audio file listed in the input manifest file used in step 2.
 <br />Each line in the new output files will have 3 values, separated by commas: word, start time (sec), end time (sec). This format is consistent with the 'alignments.txt' files created by the other alignment scripts described in the [C3Imaging/speech-augmentation](https://github.com/C3Imaging/speech-augmentation#time-aligned-predictions-and-forced-alignment) project.
 <br /><br />
 
