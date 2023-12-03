@@ -1,6 +1,13 @@
-# convert from word-level timestamp offset values, returned in the json file after running transcribe_speech.py with compute_timestamps=True on a Conformer model, to seconds values.
+"""
+Convert from word-level timestamp offset values, returned in the json file after running 'transcribe_speech.py' 
+with 'compute_timestamps=True' command on a Conformer model to seconds values
+and save output in the same format of time alignment output as with wav2vec2 and Whisper models from the following scripts:
+https://github.com/C3Imaging/speech-augmentation/blob/main/wav2vec2_forced_alignment_libri.py
+https://github.com/C3Imaging/speech-augmentation/blob/main/whisper_time_alignment.py
+"""
 
 import argparse
+from itertools import groupby
 import yaml
 import os
 import json
@@ -59,6 +66,7 @@ def main():
     # load the transcripts file and loop through the predictions
     with open(args.predictions_file_path, 'r') as fin:
         for line in fin:
+            # load a line from the predictions.json file as a dict.
             item = json.loads(line)
 
             logging.info(f"starting to process {item['audio_filepath']}")
@@ -77,17 +85,51 @@ def main():
                 os.makedirs(cur_out_dir, exist_ok=True)
                 logging.info(f"{cur_out_dir} folder created.")
 
-            word_timestamps = item['timestamps_word']
+            # get all keys from the item dict.
+            keys = list(item.keys())
 
-            # write the timestamps for that audio file into a txt file in the cur_out_dir subfolder
-            with open(os.path.join(cur_out_dir, 'alignments.txt'), 'w') as f:
-                f.write("word_label,start_time,stop_time\n") # time is in seconds
-                for stamp in word_timestamps:
-                    start = stamp['start_offset'] * time_stride
-                    stop = stamp['end_offset'] * time_stride
-                    word = stamp['word']
-                    # for each word detected, save to file the {label, start time, stop time} as a CSV line
-                    f.write(f"{word},{start:.2f},{stop:.2f}\n")
+            if "beam" in ' '.join(keys):
+                # all beam search hypotheses were returned in the predictions.json file.
+
+                # leave only "beamX_xxx" keys in the dict.
+                keys.pop(0) # remove "audio_filepath"
+                keys.pop(0) # remove "duration"
+
+                # group keys into separate lists according to their beam number
+                each_word = sorted([x.split('_') for x in keys])
+
+                # group by the beam number
+                grouped = [list(value) for key, value in groupby(each_word, lambda x: x[0])]
+
+                beam_keys = []
+                for group in grouped:
+                    temp = []
+                    for i in range(len(group)):
+                        temp.append("_".join(group[i]))
+                    beam_keys.append(temp)
+
+                for i in range(len(beam_keys)):
+                        with open(os.path.join(cur_out_dir, f"alignments_beamsearch_{i+1}_of_{len(beam_keys)}.txt"), 'w') as f:
+                            f.write("word_label,start_time,stop_time\n") # time is in seconds
+                            word_timestamps = item[beam_keys[i][2]]
+                            for stamp in word_timestamps:
+                                start = stamp['start_offset'] * time_stride
+                                stop = stamp['end_offset'] * time_stride
+                                word = stamp['word']
+                                # for each word detected, save to file the {label, start time, stop time} as a CSV line
+                                f.write(f"{word},{start:.2f},{stop:.2f}\n")
+            else:
+                # just the best hypothesis was returned in the predictions.json file.
+                word_timestamps = item['timestamps_word']
+                # write the timestamps for that audio file into a txt file in the cur_out_dir subfolder
+                with open(os.path.join(cur_out_dir, 'alignments_beamsearch_best.txt'), 'w') as f:
+                    f.write("word_label,start_time,stop_time\n") # time is in seconds
+                    for stamp in word_timestamps:
+                        start = stamp['start_offset'] * time_stride
+                        stop = stamp['end_offset'] * time_stride
+                        word = stamp['word']
+                        # for each word detected, save to file the {label, start time, stop time} as a CSV line
+                        f.write(f"{word},{start:.2f},{stop:.2f}\n")
             logging.info(f"finished processing {item['audio_filepath']}")
 
 
@@ -96,20 +138,19 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Convert from word-level timestamp offset values, returned in the json file after running transcribe_speech.py with compute_timestamps=True on a Conformer model, to seconds values and save to file word-by-word.")
     parser.add_argument("--model_folder_path", type=str, default=None, required=True,
-                        help="Path to the folder that contains the trained nemo model, which is stored in the 'checkpoints/' subfolder.")
+                        help="Path to the folder that contains the trained .nemo model, which is stored in the 'checkpoints/' subfolder of this specified folder.")
     parser.add_argument("--predictions_file_path", type=str, default=None, required=True,
                         help="Path to the file containing timestamped predictions outputted by the model after running 'transcribe_speech.py' on it.")
-    parser.add_argument("--out_folder_name", type=str, default='a_nemo_model_alignments',
-                help="Name of the output folder, useful to differentiate runs.")
+    parser.add_argument("--out_folder_name", type=str, default='some_nemo_model_alignments',
+                help="Name of the output folder, useful to differentiate runs. Defaults to 'some_nemo_model_alignments'")
     
-    global args, cfg
+    global args, cfg, out_dir
     args = parser.parse_args()
     # create config object from yaml file.
     cfg = Config(os.path.join(args.model_folder_path, "hparams.yaml"))
     # setup folder structure variables
-    global out_dir, NEMO_ALIGNS_PREFIX
-    WHISPER_ALIGNS_PREFIX = "NEMO_ALIGNS_"
-    out_dir = WHISPER_ALIGNS_PREFIX + args.out_folder_name # the output folder to be created in folders where there are audio files
+    NEMO_ALIGNS_PREFIX = "NEMO_ALIGNS_"
+    out_dir = NEMO_ALIGNS_PREFIX + args.out_folder_name # the output folder to be created in folders where there are audio files
 
     # setup logging to both console and logfile
     setup_logging(os.path.join('/'.join(args.predictions_file_path.split('/')[:-1]), args.predictions_file_path.split('/')[-1].split(".json")[0]), 'time_alignment_conversion.log', console=True)

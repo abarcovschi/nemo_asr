@@ -11,3 +11,4 @@ finetuned/
 tokenizers/
 test_audio/
 run_inference_batch.log
+temp.py
