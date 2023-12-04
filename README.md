@@ -15,9 +15,9 @@ Example: `python transcribe_speech.py model_path=/path/to/model.nemo dataset_man
   - `decoder_type` may be `'rnnt'` or `'ctc'`, depending on your model (will set `asr_model.cfg.decoding.model_type` to `rnnt` or `ctc`).
   - If using `'rnnt'`, use `'rnnt_decoding'` argument for setting further RNNT-specific decoding parameters.
   - If using `'ctc'`, use `'ctc_decoding'` argument for setting further CTC-specific decoding parameters.
-  - `rnnt_decoding.strategy` may be `'greedy'`, `'greedy_batch'`, `'beam'`, `'alsd'` or `'tsd'` (will set `asr_model.cfg.decoding.strategy` to one of these).
+  - `rnnt_decoding.strategy` may be `'greedy'`, `'greedy_batch'`, `'beam'`, `'alsd'` or `'tsd'` (will set `asr_model.cfg.decoding.strategy` to one of these - default='greedy_batch').
     - Same options if using `ctc_decoding.strategy`.
-  - `rnnt_decoding.rnnt_timestamp_type` may be `'all'`, `'char'` or `'word'` (will set `asr_model.cfg.decoding.rnnt_timestamp_type` to one of these).
+  - `rnnt_decoding.rnnt_timestamp_type` may be `'all'`, `'char'` or `'word'` (will set `asr_model.cfg.decoding.rnnt_timestamp_type` to one of these - default='all').
     - Same options if using `ctc_decoding.ctc_timestamp_type`.
 
  3. Run the script `scripts/timestamps_from_offset_to_secs.py --predictions_file_path /path/to/output_predictions.json` to create output 'alignments.txt' CSV files containing transcripts with word-level time alignments for each audio file listed in the input manifest file used in step 2.
@@ -28,6 +28,7 @@ Example: `python transcribe_speech.py model_path=/path/to/model.nemo dataset_man
 - decoder_type='rnnt'
 - compute_timestamps=True
 - rnnt_decoding.strategy='beam'
+- - rnnt_decoding.preserve_alignments=True
 - rnnt_decoding.beam.return_best_hypothesis=False
 - [optionally, change the beam size (number of hypotheses outputted) with: rnnt_decoding.beam.beam_size=N]<br />
 You can then run `scripts/timestamps_from_offset_to_secs.py` as before.
