@@ -145,30 +145,12 @@ def write_all_transcriptions(
     with open(cfg.output_filename, 'w', encoding='utf-8', newline='\n') as f:
         if cfg.audio_dir is not None:
             raise NotImplementedError("Please provide data to transcribe as a manifest.json file.")
-            # for idx, transcription in enumerate(best_hyps):  # type: rnnt_utils.Hypothesis
-            #     item = {'audio_filepath': filepaths[idx], pred_text_attr_name: transcription.text}
-
-            #     if compute_timestamps:
-            #         timestamps = transcription.timestep
-            #         if timestamps is not None and isinstance(timestamps, dict):
-            #             timestamps.pop('timestep', None)  # Pytorch tensor calculating index of each token, not needed.
-            #             for key in timestamps.keys():
-            #                 values = transcribe_utils.normalize_timestamp_output(timestamps[key])
-            #                 item[f'timestamps_{key}'] = values
-
-            #     if compute_langs:
-            #         item['pred_lang'] = transcription.langs
-            #         item['pred_lang_chars'] = transcription.langs_chars
-            #     if not cfg.decoding.beam.return_best_hypothesis:
-            #         item['beams'] = beams[idx]
-            #     f.write(json.dumps(item) + "\n")
         else:
             with open(cfg.dataset_manifest, 'r', encoding='utf-8') as fr:
                 for idx, line in enumerate(fr):
                     item = json.loads(line)
                     for i, hyp in enumerate(all_hyps[idx]):
-                        item[f"beam{i+1}_{pred_text_attr_name}"] = hyp.text
-
+                        item[f"hypothesis{i+1}_{pred_text_attr_name}"] = hyp.text
                         if compute_timestamps:
                             timestamps = hyp.timestep
                             if timestamps is not None and isinstance(timestamps, dict):
@@ -177,7 +159,7 @@ def write_all_transcriptions(
                                 )  # Pytorch tensor calculating index of each token, not needed.
                                 for key in timestamps.keys():
                                     values = transcribe_utils.normalize_timestamp_output(timestamps[key])
-                                    item[f"beam{i+1}_timestamps_{key}"] = values
+                                    item[f"hypothesis{i+1}_timestamps_{key}"] = values
                     f.write(json.dumps(item) + "\n")
 
     return cfg.output_filename, pred_text_attr_name
@@ -422,9 +404,11 @@ def main(cfg: TranscriptionConfig) -> TranscriptionConfig:
     logging.info(f"Finished transcribing {len(filepaths)} files !")
     logging.info(f"Writing transcriptions into file: {cfg.output_filename}")
     
-    if asr_model.decoding.cfg['strategy'] == 'beam' and not asr_model.decoding.cfg['beam']['return_best_hypothesis'] and asr_model.decoding.cfg['compute_timestamps']:
-        # get all hypotheses
-        transcriptions = transcriptions[1]
+    # command line arguments combination indicate that multiple hypotheses [with/without timestamps] are needed.
+    if asr_model.decoding.cfg['strategy'] == 'beam' and not asr_model.decoding.cfg['beam']['return_best_hypothesis']:
+        # if transcriptions form a tuple (from RNNT), extract all hypotheses list.
+        if type(transcriptions) == tuple and len(transcriptions) == 2:
+            transcriptions = transcriptions[1]
         # write audio transcriptions
         output_filename, pred_text_attr_name = write_all_transcriptions(
             transcriptions,
@@ -434,8 +418,9 @@ def main(cfg: TranscriptionConfig) -> TranscriptionConfig:
             compute_langs=compute_langs,
             compute_timestamps=compute_timestamps,
         )
+    # command line arguments indicate just the best hypotheses [with/without timestamps] are needed.
     else:
-    # if transcriptions form a tuple (from RNNT), extract just "best" hypothesis
+    # if transcriptions form a tuple (from RNNT), extract just "best" hypothesis.
         if type(transcriptions) == tuple and len(transcriptions) == 2:
             transcriptions = transcriptions[0]
 
@@ -467,5 +452,5 @@ def main(cfg: TranscriptionConfig) -> TranscriptionConfig:
 
 
 if __name__ == '__main__':
-    logging.info("NOTE: Setting the combinations of flags (rnnt_decoding.strategy='beam', rnnt_decoding.beam.return_best_hypothesis=False) or (ctc_decoding.strategy='beam', ctc_decoding.beam.return_best_hypothesis=False) WITH the 'compute_timestamps=True' flag will create an output file for EACH hypothesis returned by beam search, otherwise just the BEST hypothesis output file will be created.")
+    logging.info("NOTE: Setting the combinations of flags (rnnt_decoding.strategy='beam', rnnt_decoding.beam.return_best_hypothesis=False, rnnt_decoding.preserve_alignments=True) or (ctc_decoding.strategy='beam', ctc_decoding.beam.return_best_hypothesis=False, ctc_decoding.preserve_alignments=True) WITH ('compute_timestamps=True') will create an output file for EACH hypothesis returned by beam search (number of hypotheses returned = rnnt_decoding/ctc_decoding.beam.beam_size), otherwise just the BEST hypothesis output file will be created.")
     main()  # noqa pylint: disable=no-value-for-parameter

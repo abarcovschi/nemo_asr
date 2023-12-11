@@ -59,7 +59,9 @@ def setup_logging(arg_folder, filename, console=False, filemode='w+'):
         root_logger.handlers[1].setFormatter(logging.Formatter('%(levelname)s:%(asctime)s: %(message)s'))
 
 
-def main():
+def main(args):
+    # create config object from yaml file.
+    cfg = Config(os.path.join(args.model_folder_path, "hparams.yaml"))
     # get the seconds duration of a timestep at output of the Conformer
     time_stride = 4 * cfg.get("cfg/preprocessor/window_stride")
 
@@ -70,98 +72,129 @@ def main():
             item = json.loads(line)
 
             logging.info(f"starting to process {item['audio_filepath']}")
-            audio_folder = '/'.join(item['audio_filepath'].split('/')[:-1])
-            wav_name = item['audio_filepath'].split('/')[-1].split(".wav")[0]
-
-            # create NEMO_ALIGNS_ output subfolder in the same folder as where multiple audiofiles for a particular speaker reside.
-            cur_root_dir = os.path.join(audio_folder, out_dir)
-            if not os.path.exists(cur_root_dir): 
-                os.makedirs(cur_root_dir, exist_ok=True)
-                logging.info(f"{cur_root_dir} folder created.")
-
-            # create output subfolder for a single audio file in the particular speaker folder.
-            cur_out_dir = os.path.join(cur_root_dir, wav_name)
-            if not os.path.exists(cur_out_dir): 
-                os.makedirs(cur_out_dir, exist_ok=True)
-                logging.info(f"{cur_out_dir} folder created.")
 
             # get all keys from the item dict.
             keys = list(item.keys())
 
-            if "beam" in ' '.join(keys):
+            if "hypothesis" in ' '.join(keys):
                 # all beam search hypotheses were returned in the predictions.json file.
 
-                # leave only "beamX_xxx" keys in the dict.
+                # leave only "hypothesisX_xxx" keys in the dict.
                 keys.pop(0) # remove "audio_filepath"
                 keys.pop(0) # remove "duration"
 
-                # group keys into separate lists according to their beam number
+                # group keys into separate lists according to their hypothesis number.
                 each_word = sorted([x.split('_') for x in keys])
 
-                # group by the beam number
+                # group by the hypothesis number.
                 grouped = [list(value) for key, value in groupby(each_word, lambda x: x[0])]
 
-                beam_keys = []
+                hypothesis_keys = []
                 for group in grouped:
                     temp = []
                     for i in range(len(group)):
                         temp.append("_".join(group[i]))
-                    beam_keys.append(temp)
+                    hypothesis_keys.append(temp)
 
-                for i in range(len(beam_keys)):
-                        with open(os.path.join(cur_out_dir, f"alignments_beamsearch_{i+1}_of_{len(beam_keys)}.txt"), 'w') as f:
-                            f.write("word_label,start_time,stop_time\n") # time is in seconds
-                            word_timestamps = item[beam_keys[i][2]]
-                            for stamp in word_timestamps:
-                                start = stamp['start_offset'] * time_stride
-                                stop = stamp['end_offset'] * time_stride
-                                word = stamp['word']
-                                # for each word detected, save to file the {label, start time, stop time} as a CSV line
-                                f.write(f"{word},{start:.2f},{stop:.2f}\n")
+                for i in range(len(hypothesis_keys)):
+                    # NOTE:
+                    # hypothesis_keys[i][0] = 'hypothesis{i}_pred_text'
+                    # hypothesis_keys[i][1] = 'hypothesis{i}_timestamps_char'
+                    # hypothesis_keys[i][2] = 'hypothesis{i}_timestamps_word'
+
+                    # open a file for storing the i hypotheses for all audio files.
+                    with open(os.path.join(args.out_dir, f"hypotheses{i+1}_of_{len(hypothesis_keys)}.json"), 'a') as fout:
+                        # item_out is a JSON line to write to output file for hypotheses i.
+                        item_out = dict()
+
+                        # create unique id of audio sample by including leaf folder in the id.
+                        temp = item['audio_filepath'].split('/')[-2:] # [0] = subfolder, [1] = ____.wav
+                        temp[-1] = temp[-1].split('.wav')[0] # remove '.wav'
+                        id = '/'.join(temp)
+
+                        item_out['wav_path'] = item['audio_filepath']
+                        item_out['id'] = id
+                        item_out['pred_txt'] = item[hypothesis_keys[i][0]]
+
+                        vals = list()
+                        # word-level timestamps for hypothesis i for audio file of this line.
+                        word_timestamps = item[hypothesis_keys[i][2]]
+
+                        for stamp in word_timestamps:
+                            word_dict = dict()
+
+                            start = stamp['start_offset'] * time_stride
+                            stop = stamp['end_offset'] * time_stride
+                            word = stamp['word']
+
+                            word_dict['word'] = word
+                            word_dict['start_time'] = start
+                            word_dict['end_time'] = stop
+
+                            vals.append(word_dict)
+
+                        item_out['timestamps_word'] = vals
+                        fout.write(json.dumps(item_out) + "\n")
+
             else:
                 # just the best hypothesis was returned in the predictions.json file.
-                word_timestamps = item['timestamps_word']
-                # write the timestamps for that audio file into a txt file in the cur_out_dir subfolder
-                with open(os.path.join(cur_out_dir, 'alignments_beamsearch_best.txt'), 'w') as f:
-                    f.write("word_label,start_time,stop_time\n") # time is in seconds
+                with open(os.path.join(args.out_dir, 'best_hypotheses.json'), 'a') as fout:
+                    item_out = dict()
+
+                    # create unique id of audio sample by including leaf folder in the id.
+                    temp = item['audio_filepath'].split('/')[-2:] # [0] = subfolder, [1] = ____.wav
+                    temp[-1] = temp[-1].split('.wav')[0] # remove '.wav'
+                    id = '/'.join(temp)
+
+                    item_out['wav_path'] = item['audio_filepath']
+                    item_out['id'] = id
+                    item_out['pred_txt'] = item['pred_text']
+
+                    vals = list()
+                    word_timestamps = item['timestamps_word']
+
                     for stamp in word_timestamps:
+                        word_dict = dict()
+
                         start = stamp['start_offset'] * time_stride
                         stop = stamp['end_offset'] * time_stride
                         word = stamp['word']
-                        # for each word detected, save to file the {label, start time, stop time} as a CSV line
-                        f.write(f"{word},{start:.2f},{stop:.2f}\n")
+
+                        word_dict['word'] = word
+                        word_dict['start_time'] = start
+                        word_dict['end_time'] = stop
+
+                        vals.append(word_dict)
+
+                    item_out['timestamps_word'] = vals
+                    fout.write(json.dumps(item_out) + "\n")
+
             logging.info(f"finished processing {item['audio_filepath']}")
 
 
 if __name__ == "__main__":
     # parse program arguments
     parser = argparse.ArgumentParser(
-        description="Convert from word-level timestamp offset values, returned in the json file after running transcribe_speech.py with compute_timestamps=True on a Conformer model, to seconds values and save to file word-by-word.")
+        description="Convert from word-level timestamp offset values, returned in the resultant JSON file after running 'transcribe_speech_custom.py' with timestamps enabled on a Conformer model, to seconds values and save each hypothesis as a separate JSON file.")
     parser.add_argument("--model_folder_path", type=str, default=None, required=True,
                         help="Path to the folder that contains the trained .nemo model, which is stored in the 'checkpoints/' subfolder of this specified folder.")
     parser.add_argument("--predictions_file_path", type=str, default=None, required=True,
-                        help="Path to the file containing timestamped predictions outputted by the model after running 'transcribe_speech.py' on it.")
-    parser.add_argument("--out_folder_name", type=str, default='some_nemo_model_alignments',
-                help="Name of the output folder, useful to differentiate runs. Defaults to 'some_nemo_model_alignments'")
+                        help="Path to the JSON file containing timestamped transcript predictions outputted by the NeMo ASR model after running 'transcribe_speech_custom.py' on it.")
+    parser.add_argument("--out_dir", type=str, required=True,
+                        help="Path to a new output folder to create, where results will be saved.")
     
-    global args, cfg, out_dir
     args = parser.parse_args()
-    # create config object from yaml file.
-    cfg = Config(os.path.join(args.model_folder_path, "hparams.yaml"))
-    # setup folder structure variables
-    NEMO_ALIGNS_PREFIX = "NEMO_ALIGNS_"
-    out_dir = NEMO_ALIGNS_PREFIX + args.out_folder_name # the output folder to be created in folders where there are audio files
 
     # setup logging to both console and logfile
-    setup_logging(os.path.join('/'.join(args.predictions_file_path.split('/')[:-1]), args.predictions_file_path.split('/')[-1].split(".json")[0]), 'time_alignment_conversion.log', console=True)
+    setup_logging(args.out_dir, 'time_alignment_conversion.log', console=True, filemode='w')
 
     # start timing how long it takes to run script
     tic = time.perf_counter()
 
     # log the command that started the script
     logging.info(f"Started script via: python {' '.join(sys.argv)}")
-    main()
+
+    main(args)
 
     toc = time.perf_counter()
     logging.info(f"Finished processing in {time.strftime('%H:%M:%Ss', time.gmtime(toc - tic))}")
-    
