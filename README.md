@@ -9,7 +9,7 @@ This project involves finetuning and extracting time alignments from Automatic S
 1. Create a JSON manifest file containing a list of audio files to transcribe. To create such a manifest file, take inspiration from [prepare_manifest_Wearable_Audio_Diarized.py](https://github.com/abarcovschi/nemo_asr/blob/main/scripts/prepare_manifest_Wearable_Audio_Diarized.py).
 
 2. Run the script `transcribe_speech.py`:
-Example: `python transcribe_speech.py model_path=/path/to/model.nemo dataset_manifest=/path/to/manifest_to_transcribe.json output_filename=/path/to/output_predictions.json batch_size=8 cuda=-1 amp=True decoder_type='rnnt' compute_timestamps=True rnnt_decoding.strategy='alsd' rnnt_decoding.beam.beam_size=5`<br />
+Example: `python transcribe_speech.py model_path=/path/to/model/folder/checkpints/model.nemo dataset_manifest=/path/to/manifest_to_transcribe.json output_filename=/path/to/output_predictions.json batch_size=8 cuda=-1 amp=True decoder_type='rnnt' compute_timestamps=True rnnt_decoding.strategy='alsd' rnnt_decoding.beam.beam_size=5`<br />
 **NOTES:**
   - To create char and word-level time alignments for the generated transcriptions, you must include the **`compute_timestamps=True`** flag.
   - `decoder_type` may be `'rnnt'` or `'ctc'`, depending on your model (will set `asr_model.cfg.decoding.model_type` to `rnnt` or `ctc`).
@@ -20,7 +20,8 @@ Example: `python transcribe_speech.py model_path=/path/to/model.nemo dataset_man
   - `rnnt_decoding.rnnt_timestamp_type` may be `'all'`, `'char'` or `'word'` (will set `asr_model.cfg.decoding.rnnt_timestamp_type` to one of these - default='all').
     - Same options if using `ctc_decoding.ctc_timestamp_type`.
 
- 3. Run the script `timestamps_from_offset_to_secs.py --predictions_file_path /path/to/output_predictions.json --out_dir /path/to/new/folder/for/results` to create output `hypotheses.json` JSON files containing transcripts with word-level time alignments (if --compute_timestamps=True was used) for each audio file listed in the input manifest file used in step 2.
+ 3. Run the script `timestamps_from_offset_to_secs.py --model_folder_path /path/to/model/folder/ --predictions_file_path /path/to/output_predictions.json --out_dir /path/to/new/folder/for/results` to create output `hypotheses.json` JSON files containing transcripts with word-level time alignments (if --compute_timestamps=True was used) for each audio file listed in the input manifest file used in step 2.<br />
+ **NOTE:** the `--model_folder_path` argument is the folder in which the `hparams.yaml` file is located for the .nemo model used in step 2. The .nemo model is usually located in the /checkpoints subdirectory of this folder.
 <br /><br />
 
 **UPDATE:** The script `transcribe_speech.py` can only be used to create word-level time alignments for the **best** hypothesis from the ASR transcription process.<br />
