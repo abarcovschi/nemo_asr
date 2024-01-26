@@ -67,7 +67,7 @@ compute_timestamps=True
 
 ## Generating Time Alignments for Multiple Transcriptions
 
-1. Create a JSON manifest file containing a list of audio files to transcribe. To create such a manifest file, take inspiration from [prepare_manifest_Wearable_Audio_Diarized.py](https://github.com/abarcovschi/nemo_asr/blob/main/scripts/prepare_manifest_Wearable_Audio_Diarized.py).
+1. Create a JSON manifest file containing a list of audio files to transcribe. To create such a manifest file, take inspiration from [scripts/prepare_manifest_Wearable_Audio_Diarized.py](https://github.com/abarcovschi/nemo_asr/blob/main/scripts/prepare_manifest_Wearable_Audio_Diarized.py).
 
 2. Run the script `transcribe_speech.py`:
 Example: `python transcribe_speech.py model_path=/path/to/model/folder/checkpints/model.nemo dataset_manifest=/path/to/manifest_to_transcribe.json output_filename=/path/to/output_predictions.json batch_size=8 cuda=-1 amp=True decoder_type='rnnt' compute_timestamps=True rnnt_decoding.strategy='alsd' rnnt_decoding.beam.beam_size=5`<br />
