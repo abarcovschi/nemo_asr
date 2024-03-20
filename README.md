@@ -58,6 +58,7 @@ compute_timestamps=True
 - `rnnt_decoding.rnnt_timestamp_type`: (`'all'`, `'char'`, `'word'`) will set `asr_model.cfg.decoding.rnnt_timestamp_type` to one of these. <br />
 	same options if using `ctc_decoding.ctc_timestamp_type`
 - `compute_timestamps`: (False **(default)**, True) will set `asr_model.cfg.decoding.preserve_alignments` to `True` or `False`. <br />
+- `cuda`: specifies index of which CUDA device to run the script on (starts from index 0). <br />
 
 **NOTES:**
 - Any command line argument will be processed as a field of the `cfg` object in the script, e.g.  setting `rnnt_decoding.strategy='tsd'` will mean in the script it is accessed via `cfg.rnnt_decoding.strategy`.
